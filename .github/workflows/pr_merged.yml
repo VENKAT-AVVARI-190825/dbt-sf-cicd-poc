@@ -1,0 +1,47 @@
+name: PR Accepted Deployment
+run-name: PR from ${{ github.actor }} accepted - triggered a ${{ github.event_name }}
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC token exchange
+
+jobs:
+  run-snowflake-dbt-job:
+    name: "Run on Accepted PR"
+    runs-on: ubuntu-latest
+    environment: prod  # must match the OIDC service user subject
+    env:
+      SNOWFLAKE_CLI_FEATURES_ENABLE_DBT: true
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          use-oidc: true  # OIDC — no static credentials needed
+
+      - name: Check Snowflake CLI version
+        run: snow --version
+
+      - name: Test Snowflake connection
+        run: snow connection test -x  # -x = --temporary-connection
+
+      # Deploy or update the production dbt project object
+      - name: Deploy dbt project object to ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt deploy media_dataops_dbt_object_gh_action --source ./media_dataops --force -x
+
+      - name: List all Snowflake dbt project objects
+        run: snow dbt list -x
+
+      # Uncomment below and follow Step 7 to manage Task orchestration via source control
+      # - name: Run schedules.sql to create or alter tasks
+      #   run: snow sql -f ${{ github.workspace }}/media_dataops/schedules.sql -x

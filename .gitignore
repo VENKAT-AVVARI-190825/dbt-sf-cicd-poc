@@ -1,0 +1,9 @@
+# dbt generated
+media_dataops/target/
+media_dataops/dbt_packages/
+media_dataops/logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

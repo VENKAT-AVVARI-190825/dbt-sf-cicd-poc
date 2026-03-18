@@ -1,0 +1,19 @@
+default:
+  target: dev
+  outputs:
+    dev:
+      account: '_'         # overwritten by SNOWFLAKE_ACCOUNT GitHub secret
+      user: '_'            # overwritten by OIDC service user
+      database: media_dataops_dev_dbt_DB
+      schema: dev_schema
+      role: DATAOPS_ROLE
+      type: snowflake
+      warehouse: MEDIA_WH_XS
+    prod:
+      account: '_'         # overwritten by SNOWFLAKE_ACCOUNT GitHub secret
+      user: '_'            # overwritten by OIDC service user
+      database: media_dataops_prod_dbt_DB
+      schema: prod_schema
+      role: DATAOPS_ROLE
+      type: snowflake
+      warehouse: MEDIA_WH_MD

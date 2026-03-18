@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: media_events
+    description: "Transformed media events from S3 stage into Snowflake"
+    columns:
+      - name: event_id
+        tests:
+          - unique
+          - not_null
+      - name: event_type
+        tests:
+          - not_null
+      - name: ingested_at
+        tests:
+          - not_null

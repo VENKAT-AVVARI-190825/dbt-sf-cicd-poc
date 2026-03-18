@@ -1,0 +1,50 @@
+name: Incoming PR
+run-name: PR opened by ${{ github.actor }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC token exchange
+
+jobs:
+  run-snowflake-test-dbt-job:
+    name: "Run on Incoming PR"
+    runs-on: ubuntu-latest
+    environment: prod  # must match the OIDC service user subject
+    env:
+      SNOWFLAKE_CLI_FEATURES_ENABLE_DBT: true
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          use-oidc: true  # OIDC — no static credentials needed
+
+      - name: Check Snowflake CLI version
+        run: snow --version
+
+      - name: Test Snowflake connection
+        run: snow connection test -x  # -x = --temporary-connection
+
+      # Creates a TESTER dbt project object to validate PR code against dev schema
+      - name: Deploy TESTER dbt project object to ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x
+
+      - name: List all Snowflake dbt project objects
+        run: snow dbt list -x
+
+      - name: Run TESTER dbt project object against dev schema
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev
+
+      - name: Run data quality tests on TESTER dbt project object
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev

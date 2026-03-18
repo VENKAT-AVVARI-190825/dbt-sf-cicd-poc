@@ -1,0 +1,12 @@
+name: media_dataops
+version: "1.0.0"
+profile: default
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+models:
+  media_dataops:
+    +schema: dataops
+    +tags: ["media", "dataops"]
