@@ -38,13 +38,13 @@ jobs:
 
       # Creates a TESTER dbt project object to validate PR code against dev schema
       - name: Deploy TESTER dbt project object to ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}
-        run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x
+        run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
 
       - name: List all Snowflake dbt project objects
-        run: snow dbt list -x
+        run: snow dbt list -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
 
       - name: Run TESTER dbt project object against dev schema
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
 
       - name: Run data quality tests on TESTER dbt project object
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
