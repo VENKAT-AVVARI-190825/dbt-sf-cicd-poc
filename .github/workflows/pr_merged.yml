@@ -17,8 +17,8 @@ jobs:
     env:
       SNOWFLAKE_CLI_FEATURES_ENABLE_DBT: true
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
     steps:
       - name: Check out repository code
@@ -36,11 +36,11 @@ jobs:
         run: snow connection test -x
 
       # Deploy or update the production dbt project object
-      - name: Deploy dbt project object to ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}
-        run: snow dbt deploy media_dataops_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+      - name: Deploy dbt project object to ${{ secrets.SNOWFLAKE_DATABASE }}.${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: snow dbt deploy media_dataops_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       - name: List all Snowflake dbt project objects
-        run: snow dbt list -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt list -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       # Uncomment below and follow Step 7 to manage Task orchestration via source control
       # - name: Run schedules.sql to create or alter tasks

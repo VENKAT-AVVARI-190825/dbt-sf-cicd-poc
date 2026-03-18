@@ -18,8 +18,8 @@ jobs:
     env:
       SNOWFLAKE_CLI_FEATURES_ENABLE_DBT: true
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
     steps:
       - name: Check out repository code
@@ -37,14 +37,14 @@ jobs:
         run: snow connection test -x
 
       # Creates a TESTER dbt project object to validate PR code against dev schema
-      - name: Deploy TESTER dbt project object to ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}
-        run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+      - name: Deploy TESTER dbt project object to ${{ secrets.SNOWFLAKE_DATABASE }}.${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       - name: List all Snowflake dbt project objects
-        run: snow dbt list -x --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt list -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       - name: Run TESTER dbt project object against dev schema
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       - name: Run data quality tests on TESTER dbt project object
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev --database ${{ vars.SNOWFLAKE_DATABASE }} --schema ${{ vars.SNOWFLAKE_SCHEMA }}
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
