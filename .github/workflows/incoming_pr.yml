@@ -36,7 +36,7 @@ jobs:
       - name: Test Snowflake connection
         run: snow connection test -x
 
-      # Creates a TESTER dbt project object to validate PR code against dev schema
+      # Creates a TESTER dbt project object to validate PR code against dev schema instead of prod schema
       - name: Deploy TESTER dbt project object to ${{ secrets.SNOWFLAKE_DATABASE }}.${{ secrets.SNOWFLAKE_SCHEMA }}
         run: snow dbt deploy media_dataops_TESTER_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
