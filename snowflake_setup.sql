@@ -16,6 +16,31 @@ CREATE SCHEMA  IF NOT EXISTS media_dataops_dev_dbt_DB.dev_schema;
 CREATE DATABASE IF NOT EXISTS media_dataops_prod_dbt_DB;
 CREATE SCHEMA  IF NOT EXISTS media_dataops_prod_dbt_DB.prod_schema;
 
+-- Create role
+CREATE ROLE IF NOT EXISTS DATAOPS_ROLE;
+
+-- Create warehouses
+CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_XS
+  WAREHOUSE_SIZE = 'X-SMALL'
+  AUTO_SUSPEND   = 60
+  AUTO_RESUME    = TRUE;
+
+CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_MD
+  WAREHOUSE_SIZE = 'MEDIUM'
+  AUTO_SUSPEND   = 60
+  AUTO_RESUME    = TRUE;
+
+-- Grant warehouse access to role
+GRANT USAGE ON WAREHOUSE MEDIA_WH_XS TO ROLE DATAOPS_ROLE;
+GRANT USAGE ON WAREHOUSE MEDIA_WH_MD TO ROLE DATAOPS_ROLE;
+
+-- Grant DB/schema access
+GRANT USAGE ON DATABASE media_dataops_dev_dbt_DB TO ROLE DATAOPS_ROLE;
+GRANT USAGE ON DATABASE media_dataops_prod_dbt_DB TO ROLE DATAOPS_ROLE;
+GRANT USAGE ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
+GRANT USAGE ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
+GRANT ALL ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
+GRANT ALL ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
 
 -- ============================================================
 -- Step 2: Create OIDC Service User for GitHub Actions
@@ -26,7 +51,7 @@ CREATE USER IF NOT EXISTS GitHub_Actions_Service_User
   WORKLOAD_IDENTITY = (
     TYPE   = OIDC
     ISSUER = 'https://token.actions.githubusercontent.com',
-    SUBJECT = 'repo:<your_repo_org>/<your_dbt_repo>:environment:prod'
+    SUBJECT = 'repo:VENKAT-AVVARI-190825/dbt-sf-cicd-poc:environment:prod'
   )
   DEFAULT_ROLE      = DATAOPS_ROLE
   DEFAULT_WAREHOUSE = MEDIA_WH_XS
@@ -57,3 +82,5 @@ SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GitHub_Actions_Service_User;
 -- SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER <your_user_name>;
 -- ALTER NETWORK POLICY <existing_policy_name>
 --   ADD ALLOWED_NETWORK_RULE_LIST = ('SNOWFLAKE.NETWORK_SECURITY.GITHUBACTIONS_GLOBAL');
+
+
