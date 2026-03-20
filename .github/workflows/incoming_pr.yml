@@ -44,7 +44,7 @@ jobs:
         run: snow dbt list -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
 
       - name: Run TESTER dbt project object against dev schema
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action run --target dev
 
       - name: Run data quality tests on TESTER dbt project object
-        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: snow dbt execute -x media_dataops_TESTER_dbt_object_gh_action test --target dev
