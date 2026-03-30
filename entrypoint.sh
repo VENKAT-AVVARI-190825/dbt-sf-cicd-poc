@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Enable snow dbt feature
+export SNOWFLAKE_CLI_FEATURES_ENABLE_DBT=true
+
 # Write Snowflake CLI config from env vars
 mkdir -p ~/.snowflake
 cat > ~/.snowflake/config.toml <<EOF
