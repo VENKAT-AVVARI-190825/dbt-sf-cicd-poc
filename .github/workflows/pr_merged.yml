@@ -7,11 +7,11 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # required for OIDC token exchange with AWS
+  id-token: write
 
 jobs:
-  run-snowflake-dbt-job:
-    name: "Run on Accepted PR"
+  build-and-trigger:
+    name: "Build image and trigger CodePipeline (prod)"
     runs-on: ubuntu-latest
     environment: prod
 
@@ -37,35 +37,3 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "IMAGE=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
-
-      - name: Update ECS task definition with new image
-        run: |
-          TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION }} --query 'taskDefinition' --output json)
-          NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "$IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
-          echo "TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
-
-      - name: Run dbt on ECS Fargate
-        run: |
-          aws ecs run-task \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --task-definition $TASK_DEF_ARN \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNET }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=ENABLED}" \
-            --overrides "{
-              \"containerOverrides\": [{
-                \"name\": \"dbt-sf-cicd\",
-                \"environment\": [
-                  {\"name\": \"SNOWFLAKE_ACCOUNT\",   \"value\": \"${{ secrets.SNOWFLAKE_ACCOUNT }}\"},
-                  {\"name\": \"SNOWFLAKE_USER\",      \"value\": \"${{ secrets.SNOWFLAKE_USER }}\"},
-                  {\"name\": \"SNOWFLAKE_PASSWORD\",  \"value\": \"${{ secrets.SNOWFLAKE_PASSWORD }}\"},
-                  {\"name\": \"SNOWFLAKE_DATABASE\",  \"value\": \"${{ secrets.SNOWFLAKE_DATABASE }}\"},
-                  {\"name\": \"SNOWFLAKE_SCHEMA\",    \"value\": \"${{ secrets.SNOWFLAKE_SCHEMA }}\"},
-                  {\"name\": \"DBT_OBJECT_NAME\",     \"value\": \"media_dataops_dbt_object_gh_action\"},
-                  {\"name\": \"DBT_TARGET\",          \"value\": \"prod\"},
-                  {\"name\": \"RUN_TESTS\",           \"value\": \"false\"}
-                ]
-              }]
-            }" \
-            --query 'tasks[0].taskArn' --output text

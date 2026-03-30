@@ -1,0 +1,64 @@
+version: 0.2
+
+env:
+  parameter-store:
+    SNOWFLAKE_ACCOUNT:  /dbt-sf-cicd/SNOWFLAKE_ACCOUNT
+    SNOWFLAKE_USER:     /dbt-sf-cicd/SNOWFLAKE_USER
+    SNOWFLAKE_PASSWORD: /dbt-sf-cicd/SNOWFLAKE_PASSWORD
+    SNOWFLAKE_DATABASE: /dbt-sf-cicd/SNOWFLAKE_DATABASE_PROD
+    SNOWFLAKE_SCHEMA:   /dbt-sf-cicd/SNOWFLAKE_SCHEMA_PROD
+    ECS_CLUSTER:        /dbt-sf-cicd/ECS_CLUSTER
+    ECS_TASK_DEF:       /dbt-sf-cicd/ECS_TASK_DEFINITION
+    ECS_SUBNET:         /dbt-sf-cicd/ECS_SUBNET
+    ECS_SECURITY_GROUP: /dbt-sf-cicd/ECS_SECURITY_GROUP
+
+phases:
+  build:
+    commands:
+      # Get latest task definition revision
+      - |
+        TASK_DEF_ARN=$(aws ecs describe-task-definition \
+          --task-definition $ECS_TASK_DEF \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+
+      # Run ECS Fargate task
+      - |
+        TASK_ARN=$(aws ecs run-task \
+          --cluster $ECS_CLUSTER \
+          --task-definition $TASK_DEF_ARN \
+          --launch-type FARGATE \
+          --network-configuration "awsvpcConfiguration={subnets=[$ECS_SUBNET],securityGroups=[$ECS_SECURITY_GROUP],assignPublicIp=ENABLED}" \
+          --overrides "{
+            \"containerOverrides\": [{
+              \"name\": \"dbt-sf-cicd\",
+              \"environment\": [
+                {\"name\": \"SNOWFLAKE_ACCOUNT\",   \"value\": \"$SNOWFLAKE_ACCOUNT\"},
+                {\"name\": \"SNOWFLAKE_USER\",      \"value\": \"$SNOWFLAKE_USER\"},
+                {\"name\": \"SNOWFLAKE_PASSWORD\",  \"value\": \"$SNOWFLAKE_PASSWORD\"},
+                {\"name\": \"SNOWFLAKE_DATABASE\",  \"value\": \"$SNOWFLAKE_DATABASE\"},
+                {\"name\": \"SNOWFLAKE_SCHEMA\",    \"value\": \"$SNOWFLAKE_SCHEMA\"},
+                {\"name\": \"DBT_OBJECT_NAME\",     \"value\": \"media_dataops_dbt_object_gh_action\"},
+                {\"name\": \"DBT_TARGET\",          \"value\": \"prod\"},
+                {\"name\": \"RUN_TESTS\",           \"value\": \"false\"}
+              ]
+            }]
+          }" \
+          --query 'tasks[0].taskArn' --output text)
+      - echo "Fargate task started: $TASK_ARN"
+
+      # Wait for task to complete
+      - aws ecs wait tasks-stopped --cluster $ECS_CLUSTER --tasks $TASK_ARN
+
+      # Check exit code
+      - |
+        EXIT_CODE=$(aws ecs describe-tasks \
+          --cluster $ECS_CLUSTER \
+          --tasks $TASK_ARN \
+          --query 'tasks[0].containers[0].exitCode' \
+          --output text)
+        echo "Task exit code: $EXIT_CODE"
+        if [ "$EXIT_CODE" != "0" ]; then
+          echo "dbt prod deployment failed"
+          exit 1
+        fi
