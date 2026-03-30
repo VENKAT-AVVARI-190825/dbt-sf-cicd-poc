@@ -8,5 +8,5 @@ macro-paths: ["macros"]
 
 models:
   media_dataops:
-    +schema: dataops
+    +schema: null
     +tags: ["media", "dataops"]

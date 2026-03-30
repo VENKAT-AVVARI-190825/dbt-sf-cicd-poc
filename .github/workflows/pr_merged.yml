@@ -7,41 +7,65 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # required for OIDC token exchange
+  id-token: write  # required for OIDC token exchange with AWS
 
 jobs:
   run-snowflake-dbt-job:
     name: "Run on Accepted PR"
     runs-on: ubuntu-latest
-    environment: prod  # must match the OIDC service user subject
-    env:
-      SNOWFLAKE_CLI_FEATURES_ENABLE_DBT: true
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+    environment: prod
 
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v2.0
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          use-oidc: true  # OIDC — no static credentials needed
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
 
-      - name: Check Snowflake CLI version
-        run: snow --version
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Test Snowflake connection
-        run: snow connection test -x
+      - name: Build and push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          ECR_REPOSITORY: dbt-sf-cicd
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "IMAGE=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
-      # Deploy or update the production dbt project object
-      - name: Deploy dbt project object to ${{ secrets.SNOWFLAKE_DATABASE }}.${{ secrets.SNOWFLAKE_SCHEMA }}
-        run: snow dbt deploy media_dataops_dbt_object_gh_action --source ./media_dataops --force -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
+      - name: Update ECS task definition with new image
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION }} --query 'taskDefinition' --output json)
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "$IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
 
-      - name: List all Snowflake dbt project objects
-        run: snow dbt list -x --database ${{ secrets.SNOWFLAKE_DATABASE }} --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
-
-      # Uncomment below and follow Step 7 to manage Task orchestration via source control
-      # - name: Run schedules.sql to create or alter tasks
-      #   run: snow sql -f ${{ github.workspace }}/media_dataops/schedules.sql -x
+      - name: Run dbt on ECS Fargate
+        run: |
+          aws ecs run-task \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --task-definition $TASK_DEF_ARN \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNET }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=ENABLED}" \
+            --overrides "{
+              \"containerOverrides\": [{
+                \"name\": \"dbt-sf-cicd\",
+                \"environment\": [
+                  {\"name\": \"SNOWFLAKE_ACCOUNT\",   \"value\": \"${{ secrets.SNOWFLAKE_ACCOUNT }}\"},
+                  {\"name\": \"SNOWFLAKE_USER\",      \"value\": \"${{ secrets.SNOWFLAKE_USER }}\"},
+                  {\"name\": \"SNOWFLAKE_PASSWORD\",  \"value\": \"${{ secrets.SNOWFLAKE_PASSWORD }}\"},
+                  {\"name\": \"SNOWFLAKE_DATABASE\",  \"value\": \"${{ secrets.SNOWFLAKE_DATABASE }}\"},
+                  {\"name\": \"SNOWFLAKE_SCHEMA\",    \"value\": \"${{ secrets.SNOWFLAKE_SCHEMA }}\"},
+                  {\"name\": \"DBT_OBJECT_NAME\",     \"value\": \"media_dataops_dbt_object_gh_action\"},
+                  {\"name\": \"DBT_TARGET\",          \"value\": \"prod\"},
+                  {\"name\": \"RUN_TESTS\",           \"value\": \"false\"}
+                ]
+              }]
+            }" \
+            --query 'tasks[0].taskArn' --output text
