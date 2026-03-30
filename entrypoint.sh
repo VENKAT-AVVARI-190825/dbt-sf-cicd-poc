@@ -16,6 +16,7 @@ warehouse = "MEDIA_WH_XS"
 database  = "${SNOWFLAKE_DATABASE}"
 schema    = "${SNOWFLAKE_SCHEMA}"
 EOF
+chmod 0600 ~/.snowflake/config.toml
 
 cd /app
 
