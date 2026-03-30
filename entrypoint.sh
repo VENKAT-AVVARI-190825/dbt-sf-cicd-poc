@@ -24,9 +24,9 @@ cd /app
 snow dbt deploy "${DBT_OBJECT_NAME}" --source ./media_dataops --force -c default
 
 # Run dbt
-snow dbt execute "${DBT_OBJECT_NAME}" run --target "${DBT_TARGET:-dev}" -c default
+snow dbt execute "${DBT_OBJECT_NAME}" run --target "${DBT_TARGET:-dev}"
 
 # Test dbt (only on CI/PR runs)
 if [ "${RUN_TESTS:-true}" = "true" ]; then
-  snow dbt execute "${DBT_OBJECT_NAME}" test --target "${DBT_TARGET:-dev}" -c default
+  snow dbt execute "${DBT_OBJECT_NAME}" test --target "${DBT_TARGET:-dev}"
 fi
