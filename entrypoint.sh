@@ -25,9 +25,9 @@ push_metric() {
   local metric_name=$1
   local value=$2
   local labels=$3
-  if [ -n "${GRAFANA_PROMETHEUS_URL}" ] && [ -n "${GRAFANA_API_KEY}" ]; then
-    curl -sf -X POST "${GRAFANA_PROMETHEUS_URL}" \
-      -H "Authorization: Bearer ${GRAFANA_API_KEY}" \
+  if [ -n "${GRAFANA_PROMETHEUS_URL}" ] && [ -n "${GRAFANA_USER}" ] && [ -n "${GRAFANA_API_KEY}" ]; then
+    curl -sf -X POST "${GRAFANA_PROMETHEUS_URL}/api/prom/push" \
+      -u "${GRAFANA_USER}:${GRAFANA_API_KEY}" \
       -H "Content-Type: text/plain" \
       --data-binary "${metric_name}{${labels}} ${value}" || true
   fi

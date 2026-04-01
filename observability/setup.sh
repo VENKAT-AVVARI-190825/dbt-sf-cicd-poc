@@ -11,7 +11,8 @@ LAMBDA_NAME="dbt-sf-cicd-splunk-forwarder"
 # Step 1: Store Grafana + Splunk config in SSM
 # ============================================================
 aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_PROMETHEUS_URL --value "<grafana_remote_write_url>" --type SecureString --overwrite --region $REGION
-aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_API_KEY        --value "<grafana_api_key>"          --type SecureString --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_USER           --value "<grafana_numeric_user_id>"  --type String       --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_API_KEY        --value "<grafana_service_account_token>" --type SecureString --overwrite --region $REGION
 aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_URL         --value "<splunk_hec_url>"           --type SecureString --overwrite --region $REGION
 aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_TOKEN       --value "<splunk_hec_token>"         --type SecureString --overwrite --region $REGION
 
