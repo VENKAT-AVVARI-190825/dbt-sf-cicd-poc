@@ -1,0 +1,85 @@
+{
+  "title": "dbt Snowflake CI/CD",
+  "uid": "dbt-sf-cicd",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "dbt Run Duration (seconds)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "dbt_run_duration_seconds",
+        "legendFormat": "{{env}}"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "dbt Run Status (0=pass, 1=fail)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "dbt_run_status",
+        "legendFormat": "{{env}}"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "dbt Test Status (0=pass, 1=fail)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "dbt_test_status",
+        "legendFormat": "{{env}}"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Last Run Status",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "dbt_run_status",
+        "legendFormat": "{{env}}"
+      }],
+      "options": {
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            {"color": "green", "value": 0},
+            {"color": "red",   "value": 1}
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Last Test Status",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "dbt_test_status",
+        "legendFormat": "{{env}}"
+      }],
+      "options": {
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            {"color": "green", "value": 0},
+            {"color": "red",   "value": 1}
+          ]
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": [{
+      "name": "env",
+      "type": "query",
+      "query": "label_values(dbt_run_status, env)",
+      "label": "Environment"
+    }]
+  },
+  "time": {"from": "now-7d", "to": "now"},
+  "refresh": "1m"
+}
