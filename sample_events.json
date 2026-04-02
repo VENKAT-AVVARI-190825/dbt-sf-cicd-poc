@@ -1,0 +1,47 @@
+[
+  {
+    "event_id": "evt001",
+    "event_type": "play",
+    "media_asset_id": "asset123",
+    "user_id": "user456",
+    "region": "us-east-1",
+    "ingested_at": "2024-01-15 10:00:00",
+    "source_key": "s3://bucket/file1.json"
+  },
+  {
+    "event_id": "evt002",
+    "event_type": "pause",
+    "media_asset_id": "asset124",
+    "user_id": "user789",
+    "region": "us-west-2",
+    "ingested_at": "2024-01-15 11:00:00",
+    "source_key": "s3://bucket/file2.json"
+  },
+  {
+    "event_id": "evt003",
+    "event_type": "stop",
+    "media_asset_id": "asset125",
+    "user_id": "user101",
+    "region": "eu-west-1",
+    "ingested_at": "2024-01-15 12:00:00",
+    "source_key": "s3://bucket/file3.json"
+  },
+  {
+    "event_id": "evt004",
+    "event_type": "play",
+    "media_asset_id": "asset126",
+    "user_id": "user202",
+    "region": "ap-southeast-1",
+    "ingested_at": "2024-01-15 13:00:00",
+    "source_key": "s3://bucket/file4.json"
+  },
+  {
+    "event_id": "evt005",
+    "event_type": "rewind",
+    "media_asset_id": "asset127",
+    "user_id": "user303",
+    "region": "us-east-1",
+    "ingested_at": "2024-01-15 14:00:00",
+    "source_key": "s3://bucket/file5.json"
+  }
+]

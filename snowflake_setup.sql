@@ -191,8 +191,15 @@ SELECT OBJECT_CONSTRUCT(
   'source_key',     's3://bucket/file1.json'
 )::VARCHAR;
 
+-- Or upload sample_events.json via SnowSQL CLI
+-- PUT file:///path/to/sample_events.json @media_raw_stage;
+
 -- Verify data in stage
 SELECT $1 FROM @media_raw_stage (FILE_FORMAT => 'json_format');
 
+-- Truncate table before full reload (handles NULL MAX issue in incremental model)
+TRUNCATE TABLE media_dataops_dev_dbt_DB.dev_schema.media_events;
+
 -- After re-running dbt, verify data in table
 SELECT * FROM media_dataops_dev_dbt_DB.dev_schema.media_events LIMIT 10;
+SELECT * FROM media_dataops_prod_dbt_DB.prod_schema.media_events LIMIT 10;
