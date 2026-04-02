@@ -172,7 +172,27 @@ SHOW STAGES IN SCHEMA media_dataops_prod_dbt_DB.prod_schema;
 -- Check network policy
 SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GITHUB_ACTIONS_SERVICE_USER;
 
--- Query data
+-- ============================================================
+-- Step 10: Load Sample Data (for testing)
+-- ============================================================
+
 USE ROLE DATAOPS_ROLE;
+USE DATABASE media_dataops_dev_dbt_DB;
+USE SCHEMA dev_schema;
+
+INSERT INTO @media_raw_stage/sample.json
+SELECT OBJECT_CONSTRUCT(
+  'event_id',       'evt001',
+  'event_type',     'play',
+  'media_asset_id', 'asset123',
+  'user_id',        'user456',
+  'region',         'us-east-1',
+  'ingested_at',    '2024-01-15 10:00:00',
+  'source_key',     's3://bucket/file1.json'
+)::VARCHAR;
+
+-- Verify data in stage
+SELECT $1 FROM @media_raw_stage (FILE_FORMAT => 'json_format');
+
+-- After re-running dbt, verify data in table
 SELECT * FROM media_dataops_dev_dbt_DB.dev_schema.media_events LIMIT 10;
-SELECT * FROM media_dataops_prod_dbt_DB.prod_schema.media_events LIMIT 10;
