@@ -155,9 +155,24 @@ SHOW USERS LIKE 'GITHUB%';
 -- Check role grants
 SHOW GRANTS TO ROLE DATAOPS_ROLE;
 
--- Check table ownership
+-- Check dbt project objects in dev
+SHOW DBT PROJECTS IN DATABASE media_dataops_dev_dbt_DB;
+
+-- Check dbt project objects in prod
+SHOW DBT PROJECTS IN DATABASE media_dataops_prod_dbt_DB;
+
+-- Check tables
 SHOW TABLES IN SCHEMA media_dataops_dev_dbt_DB.dev_schema;
+SHOW TABLES IN SCHEMA media_dataops_prod_dbt_DB.prod_schema;
+
+-- Check stages
+SHOW STAGES IN SCHEMA media_dataops_dev_dbt_DB.dev_schema;
+SHOW STAGES IN SCHEMA media_dataops_prod_dbt_DB.prod_schema;
+
+-- Check network policy
+SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GITHUB_ACTIONS_SERVICE_USER;
 
 -- Query data
 USE ROLE DATAOPS_ROLE;
 SELECT * FROM media_dataops_dev_dbt_DB.dev_schema.media_events LIMIT 10;
+SELECT * FROM media_dataops_prod_dbt_DB.prod_schema.media_events LIMIT 10;
