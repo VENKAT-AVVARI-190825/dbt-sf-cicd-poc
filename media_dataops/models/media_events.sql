@@ -21,5 +21,5 @@ WITH raw AS (
 SELECT * FROM raw
 
 {% if is_incremental() %}
-WHERE ingested_at > (SELECT MAX(ingested_at) FROM {{ this }})
+WHERE ingested_at > (SELECT COALESCE(MAX(ingested_at), '1900-01-01') FROM {{ this }})
 {% endif %}
