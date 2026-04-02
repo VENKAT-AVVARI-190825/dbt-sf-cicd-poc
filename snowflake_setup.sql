@@ -1,25 +1,31 @@
 -- ============================================================
+-- Run as ACCOUNTADMIN
+-- ============================================================
+USE ROLE ACCOUNTADMIN;
+
+
+-- ============================================================
 -- Step 1: Create Databases and Schemas
 -- ============================================================
 
--- Option 1: Clone production database (zero-copy, cost-effective)
--- CREATE DATABASE media_dataops_dev_dbt_DB CLONE YOUR_PRODUCTION_DATABASE;
-
--- Option 2: Clone specific schemas only
--- CREATE DATABASE media_dataops_dev_dbt_DB;
--- CREATE SCHEMA media_dataops_dev_dbt_DB.dev CLONE YOUR_PRODUCTION_DATABASE.YOUR_SCHEMA_NAME;
-
--- Option 3: Fresh databases and schemas (used in this POC)
 CREATE DATABASE IF NOT EXISTS media_dataops_dev_dbt_DB;
 CREATE SCHEMA  IF NOT EXISTS media_dataops_dev_dbt_DB.dev_schema;
 
 CREATE DATABASE IF NOT EXISTS media_dataops_prod_dbt_DB;
 CREATE SCHEMA  IF NOT EXISTS media_dataops_prod_dbt_DB.prod_schema;
 
--- Create role
+
+-- ============================================================
+-- Step 2: Create Role
+-- ============================================================
+
 CREATE ROLE IF NOT EXISTS DATAOPS_ROLE;
 
--- Create warehouses
+
+-- ============================================================
+-- Step 3: Create Warehouses
+-- ============================================================
+
 CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_XS
   WAREHOUSE_SIZE = 'X-SMALL'
   AUTO_SUSPEND   = 60
@@ -30,57 +36,128 @@ CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_MD
   AUTO_SUSPEND   = 60
   AUTO_RESUME    = TRUE;
 
--- Grant warehouse access to role
+
+-- ============================================================
+-- Step 4: Grant Privileges to DATAOPS_ROLE
+-- ============================================================
+
+-- Warehouses
 GRANT USAGE ON WAREHOUSE MEDIA_WH_XS TO ROLE DATAOPS_ROLE;
 GRANT USAGE ON WAREHOUSE MEDIA_WH_MD TO ROLE DATAOPS_ROLE;
 
--- Grant DB/schema access
-GRANT USAGE ON DATABASE media_dataops_dev_dbt_DB TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON DATABASE media_dataops_prod_dbt_DB TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
-GRANT ALL ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
-GRANT ALL ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
+-- Databases
+GRANT ALL PRIVILEGES ON DATABASE media_dataops_dev_dbt_DB  TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON DATABASE media_dataops_prod_dbt_DB TO ROLE DATAOPS_ROLE;
+
+-- Schemas
+GRANT ALL PRIVILEGES ON ALL SCHEMAS IN DATABASE media_dataops_dev_dbt_DB    TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON ALL SCHEMAS IN DATABASE media_dataops_prod_dbt_DB   TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON FUTURE SCHEMAS IN DATABASE media_dataops_dev_dbt_DB  TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON FUTURE SCHEMAS IN DATABASE media_dataops_prod_dbt_DB TO ROLE DATAOPS_ROLE;
+
+-- Tables
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA media_dataops_dev_dbt_DB.dev_schema    TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA media_dataops_prod_dbt_DB.prod_schema  TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON FUTURE TABLES IN SCHEMA media_dataops_dev_dbt_DB.dev_schema   TO ROLE DATAOPS_ROLE;
+GRANT ALL PRIVILEGES ON FUTURE TABLES IN SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
+
 
 -- ============================================================
--- Step 2: Create OIDC Service User for GitHub Actions
+-- Step 5: Create Stage and File Format (dev)
 -- ============================================================
 
-CREATE USER IF NOT EXISTS GitHub_Actions_Service_User
-  TYPE = SERVICE
-  WORKLOAD_IDENTITY = (
-    TYPE   = OIDC
-    ISSUER = 'https://token.actions.githubusercontent.com',
-    SUBJECT = 'repo:VENKAT-AVVARI-190825/dbt-sf-cicd-poc:environment:prod'
-  )
+USE DATABASE media_dataops_dev_dbt_DB;
+USE SCHEMA dev_schema;
+
+CREATE FILE FORMAT IF NOT EXISTS json_format
+  TYPE = 'JSON'
+  STRIP_OUTER_ARRAY = TRUE;
+
+CREATE STAGE IF NOT EXISTS media_raw_stage
+  FILE_FORMAT = json_format;
+
+GRANT ALL ON FILE FORMAT json_format TO ROLE DATAOPS_ROLE;
+GRANT ALL ON STAGE media_raw_stage   TO ROLE DATAOPS_ROLE;
+
+
+-- ============================================================
+-- Step 6: Create Stage and File Format (prod)
+-- ============================================================
+
+USE DATABASE media_dataops_prod_dbt_DB;
+USE SCHEMA prod_schema;
+
+CREATE FILE FORMAT IF NOT EXISTS json_format
+  TYPE = 'JSON'
+  STRIP_OUTER_ARRAY = TRUE;
+
+CREATE STAGE IF NOT EXISTS media_raw_stage
+  FILE_FORMAT = json_format;
+
+GRANT ALL ON FILE FORMAT json_format TO ROLE DATAOPS_ROLE;
+GRANT ALL ON STAGE media_raw_stage   TO ROLE DATAOPS_ROLE;
+
+
+-- ============================================================
+-- Step 7: Create Service User for GitHub Actions / ECS Fargate
+-- ============================================================
+
+-- Originally created as SERVICE type with OIDC but switched to
+-- PERSON type with password auth for ECS Fargate compatibility
+
+CREATE USER IF NOT EXISTS GITHUB_ACTIONS_SERVICE_USER
   DEFAULT_ROLE      = DATAOPS_ROLE
   DEFAULT_WAREHOUSE = MEDIA_WH_XS
-  COMMENT           = 'Service User For GitHub Actions';
+  COMMENT           = 'Service User For GitHub Actions / ECS Fargate';
 
--- Set default warehouse
-ALTER USER GitHub_Actions_Service_User SET DEFAULT_WAREHOUSE = MEDIA_WH_XS;
+-- Remove OIDC workload identity and switch to password auth
+ALTER USER GITHUB_ACTIONS_SERVICE_USER UNSET WORKLOAD_IDENTITY;
+ALTER USER GITHUB_ACTIONS_SERVICE_USER SET TYPE = PERSON PASSWORD = '<your_password>';
 
--- Grant role to service user
-GRANT ROLE DATAOPS_ROLE TO USER GitHub_Actions_Service_User;
+-- Grant role
+GRANT ROLE DATAOPS_ROLE TO USER GITHUB_ACTIONS_SERVICE_USER;
+
+-- Grant role to your personal Snowflake user for querying
+GRANT ROLE DATAOPS_ROLE TO USER <your_personal_snowflake_user>;
+
+-- Grant table ownership to DATAOPS_ROLE (run if table was created by another role)
+-- GRANT OWNERSHIP ON TABLE media_dataops_dev_dbt_DB.dev_schema.media_events
+--   TO ROLE DATAOPS_ROLE COPY CURRENT GRANTS;
 
 
 -- ============================================================
--- Step 3: Network Policy (optional — only if IP restrictions apply)
+-- Step 8: Network Policy
 -- ============================================================
 
--- Option 1: Create new policy and apply to service user
+-- Created but unset for ECS Fargate compatibility
+-- (Fargate IPs are dynamic and outside the GitHub Actions IP range)
+
 CREATE NETWORK POLICY IF NOT EXISTS github_actions_policy
   ALLOWED_NETWORK_RULE_LIST = ('SNOWFLAKE.NETWORK_SECURITY.GITHUBACTIONS_GLOBAL')
   BLOCKED_NETWORK_RULE_LIST = ();
 
-ALTER USER GitHub_Actions_Service_User SET NETWORK_POLICY = github_actions_policy;
+ALTER USER GITHUB_ACTIONS_SERVICE_USER SET NETWORK_POLICY = github_actions_policy;
 
--- Verify policy is applied
-SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GitHub_Actions_Service_User;
+-- Unset network policy to allow ECS Fargate IPs
+ALTER USER GITHUB_ACTIONS_SERVICE_USER UNSET NETWORK_POLICY;
 
--- Option 2: Add rule to an existing network policy
--- SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER <your_user_name>;
--- ALTER NETWORK POLICY <existing_policy_name>
---   ADD ALLOWED_NETWORK_RULE_LIST = ('SNOWFLAKE.NETWORK_SECURITY.GITHUBACTIONS_GLOBAL');
+-- Verify
+SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GITHUB_ACTIONS_SERVICE_USER;
 
 
+-- ============================================================
+-- Step 9: Verification Queries
+-- ============================================================
+
+-- Check user setup
+SHOW USERS LIKE 'GITHUB%';
+
+-- Check role grants
+SHOW GRANTS TO ROLE DATAOPS_ROLE;
+
+-- Check table ownership
+SHOW TABLES IN SCHEMA media_dataops_dev_dbt_DB.dev_schema;
+
+-- Query data
+USE ROLE DATAOPS_ROLE;
+SELECT * FROM media_dataops_dev_dbt_DB.dev_schema.media_events LIMIT 10;
