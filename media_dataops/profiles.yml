@@ -3,17 +3,17 @@ default:
   outputs:
     dev:
       account: '_'         # overwritten by SNOWFLAKE_ACCOUNT GitHub secret
-      user: '_'            # overwritten by OIDC service user
-      database: media_dataops_dev_dbt_DB
+      user: '_'            # overwritten by service user
+      database: VENKATESWARLU_AVVARI_COGNIZANT_COM_DB
       schema: dev_schema
-      role: DATAOPS_ROLE
+      role: VENKATESWARLU_AVVARI_COGNIZANT_COM_ROLE
       type: snowflake
-      warehouse: MEDIA_WH_XS
+      warehouse: DEMO_WH
     prod:
       account: '_'         # overwritten by SNOWFLAKE_ACCOUNT GitHub secret
-      user: '_'            # overwritten by OIDC service user
-      database: media_dataops_prod_dbt_DB
+      user: '_'            # overwritten by service user
+      database: VENKATESWARLU_AVVARI_COGNIZANT_COM_DB
       schema: prod_schema
-      role: DATAOPS_ROLE
+      role: VENKATESWARLU_AVVARI_COGNIZANT_COM_ROLE
       type: snowflake
-      warehouse: MEDIA_WH_MD
+      warehouse: DEMO_WH

@@ -11,8 +11,8 @@ cat > ~/.snowflake/config.toml <<EOF
 account   = "${SNOWFLAKE_ACCOUNT}"
 user      = "${SNOWFLAKE_USER}"
 password  = "${SNOWFLAKE_PASSWORD}"
-role      = "DATAOPS_ROLE"
-warehouse = "MEDIA_WH_XS"
+role      = "VENKATESWARLU_AVVARI_COGNIZANT_COM_ROLE"
+warehouse = "DEMO_WH"
 database  = "${SNOWFLAKE_DATABASE}"
 schema    = "${SNOWFLAKE_SCHEMA}"
 EOF
