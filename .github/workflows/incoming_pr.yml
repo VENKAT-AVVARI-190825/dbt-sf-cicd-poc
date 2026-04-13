@@ -49,24 +49,27 @@ jobs:
 
       - name: Run dbt on ECS Fargate
         run: |
+          cat > /tmp/overrides.json <<EOF
+          {
+            "containerOverrides": [{
+              "name": "dbt-sf-cicd",
+              "environment": [
+                {"name": "SNOWFLAKE_ACCOUNT",   "value": "${{ secrets.SNOWFLAKE_ACCOUNT }}"},
+                {"name": "SNOWFLAKE_USER",      "value": "${{ secrets.SNOWFLAKE_USER }}"},
+                {"name": "SNOWFLAKE_PASSWORD",  "value": "${{ secrets.SNOWFLAKE_PASSWORD }}"},
+                {"name": "SNOWFLAKE_DATABASE",  "value": "${{ secrets.SNOWFLAKE_DATABASE_DEV }}"},
+                {"name": "SNOWFLAKE_SCHEMA",    "value": "${{ secrets.SNOWFLAKE_SCHEMA_DEV }}"},
+                {"name": "DBT_OBJECT_NAME",     "value": "media_dataops_TESTER_dbt_object_gh_action"},
+                {"name": "DBT_TARGET",          "value": "dev"},
+                {"name": "RUN_TESTS",           "value": "true"}
+              ]
+            }]
+          }
+          EOF
           aws ecs run-task \
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --task-definition $TASK_DEF_ARN \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNET }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=ENABLED}" \
-            --overrides "{
-              \"containerOverrides\": [{
-                \"name\": \"dbt-sf-cicd\",
-                \"environment\": [
-                  {\"name\": \"SNOWFLAKE_ACCOUNT\",   \"value\": \"${{ secrets.SNOWFLAKE_ACCOUNT }}\"},
-                  {\"name\": \"SNOWFLAKE_USER\",      \"value\": \"${{ secrets.SNOWFLAKE_USER }}\"},
-                  {\"name\": \"SNOWFLAKE_PASSWORD\",  \"value\": \"${{ secrets.SNOWFLAKE_PASSWORD }}\"},
-                  {\"name\": \"SNOWFLAKE_DATABASE\",  \"value\": \"${{ secrets.SNOWFLAKE_DATABASE }}\"},
-                  {\"name\": \"SNOWFLAKE_SCHEMA\",    \"value\": \"${{ secrets.SNOWFLAKE_SCHEMA }}\"},
-                  {\"name\": \"DBT_OBJECT_NAME\",     \"value\": \"media_dataops_TESTER_dbt_object_gh_action\"},
-                  {\"name\": \"DBT_TARGET\",          \"value\": \"dev\"},
-                  {\"name\": \"RUN_TESTS\",           \"value\": \"true\"}
-                ]
-              }]
-            }" \
+            --overrides file:///tmp/overrides.json \
             --query 'tasks[0].taskArn' --output text
