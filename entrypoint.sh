@@ -27,11 +27,14 @@ push_metric() {
   local labels=$3
   if [ -n "${GRAFANA_PROMETHEUS_URL}" ] && [ -n "${GRAFANA_USER}" ] && [ -n "${GRAFANA_API_KEY}" ]; then
     TIMESTAMP=$(date +%s%3N)
-    # Use Grafana Cloud Influx line protocol endpoint (accepts plain text)
-    curl -sf -X POST "${GRAFANA_PROMETHEUS_URL}/api/v1/push/influx/write" \
+    echo "[DEBUG] URL: ${GRAFANA_PROMETHEUS_URL}/api/v1/push/influx/write"
+    echo "[DEBUG] USER: ${GRAFANA_USER}"
+    echo "[DEBUG] DATA: ${metric_name},${labels// /,} value=${value} ${TIMESTAMP}"
+    RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${GRAFANA_PROMETHEUS_URL}/api/v1/push/influx/write" \
       -u "${GRAFANA_USER}:${GRAFANA_API_KEY}" \
       -H "Content-Type: text/plain" \
-      --data-binary "${metric_name},${labels// /,} value=${value} ${TIMESTAMP}" || echo "[WARN] Failed to push metric ${metric_name}"
+      --data-binary "${metric_name},${labels// /,} value=${value} ${TIMESTAMP}")
+    echo "[DEBUG] RESPONSE: $RESPONSE"
   fi
 }
 
