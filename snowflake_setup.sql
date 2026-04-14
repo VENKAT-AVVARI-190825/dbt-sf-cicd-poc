@@ -1,86 +1,76 @@
 -- ============================================================
--- Step 1: Create Databases and Schemas
+-- Snowflake Setup for dbt CI/CD POC
+-- Account: RMHNYOB-COGNIZANT_INDIA
+-- Run as: VENKATESWARLU.AVVARI@COGNIZANT.COM
+-- Note: No ACCOUNTADMIN required — uses existing DB, warehouse and role
 -- ============================================================
 
--- Option 1: Clone production database (zero-copy, cost-effective)
--- CREATE DATABASE media_dataops_dev_dbt_DB CLONE YOUR_PRODUCTION_DATABASE;
-
--- Option 2: Clone specific schemas only
--- CREATE DATABASE media_dataops_dev_dbt_DB;
--- CREATE SCHEMA media_dataops_dev_dbt_DB.dev CLONE YOUR_PRODUCTION_DATABASE.YOUR_SCHEMA_NAME;
-
--- Option 3: Fresh databases and schemas (used in this POC)
-CREATE DATABASE IF NOT EXISTS media_dataops_dev_dbt_DB;
-CREATE SCHEMA  IF NOT EXISTS media_dataops_dev_dbt_DB.dev_schema;
-
-CREATE DATABASE IF NOT EXISTS media_dataops_prod_dbt_DB;
-CREATE SCHEMA  IF NOT EXISTS media_dataops_prod_dbt_DB.prod_schema;
-
--- Create role
-CREATE ROLE IF NOT EXISTS DATAOPS_ROLE;
-
--- Create warehouses
-CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_XS
-  WAREHOUSE_SIZE = 'X-SMALL'
-  AUTO_SUSPEND   = 60
-  AUTO_RESUME    = TRUE;
-
-CREATE WAREHOUSE IF NOT EXISTS MEDIA_WH_MD
-  WAREHOUSE_SIZE = 'MEDIUM'
-  AUTO_SUSPEND   = 60
-  AUTO_RESUME    = TRUE;
-
--- Grant warehouse access to role
-GRANT USAGE ON WAREHOUSE MEDIA_WH_XS TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON WAREHOUSE MEDIA_WH_MD TO ROLE DATAOPS_ROLE;
-
--- Grant DB/schema access
-GRANT USAGE ON DATABASE media_dataops_dev_dbt_DB TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON DATABASE media_dataops_prod_dbt_DB TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
-GRANT USAGE ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
-GRANT ALL ON SCHEMA media_dataops_dev_dbt_DB.dev_schema TO ROLE DATAOPS_ROLE;
-GRANT ALL ON SCHEMA media_dataops_prod_dbt_DB.prod_schema TO ROLE DATAOPS_ROLE;
-
--- ============================================================
--- Step 2: Create OIDC Service User for GitHub Actions
--- ============================================================
-
-CREATE USER IF NOT EXISTS GitHub_Actions_Service_User
-  TYPE = SERVICE
-  WORKLOAD_IDENTITY = (
-    TYPE   = OIDC
-    ISSUER = 'https://token.actions.githubusercontent.com',
-    SUBJECT = 'repo:VENKAT-AVVARI-190825/dbt-sf-cicd-poc:environment:prod'
-  )
-  DEFAULT_ROLE      = DATAOPS_ROLE
-  DEFAULT_WAREHOUSE = MEDIA_WH_XS
-  COMMENT           = 'Service User For GitHub Actions';
-
--- Set default warehouse
-ALTER USER GitHub_Actions_Service_User SET DEFAULT_WAREHOUSE = MEDIA_WH_XS;
-
--- Grant role to service user
-GRANT ROLE DATAOPS_ROLE TO USER GitHub_Actions_Service_User;
+USE ROLE    VENKATESWARLU_AVVARI_COGNIZANT_COM_ROLE;
+USE WAREHOUSE DEMO_WH;
+USE DATABASE  VENKATESWARLU_AVVARI_COGNIZANT_COM_DB;
 
 
 -- ============================================================
--- Step 3: Network Policy (optional — only if IP restrictions apply)
+-- Step 1: Create Schemas
 -- ============================================================
 
--- Option 1: Create new policy and apply to service user
-CREATE NETWORK POLICY IF NOT EXISTS github_actions_policy
-  ALLOWED_NETWORK_RULE_LIST = ('SNOWFLAKE.NETWORK_SECURITY.GITHUBACTIONS_GLOBAL')
-  BLOCKED_NETWORK_RULE_LIST = ();
-
-ALTER USER GitHub_Actions_Service_User SET NETWORK_POLICY = github_actions_policy;
-
--- Verify policy is applied
-SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER GitHub_Actions_Service_User;
-
--- Option 2: Add rule to an existing network policy
--- SHOW PARAMETERS LIKE 'NETWORK_POLICY' FOR USER <your_user_name>;
--- ALTER NETWORK POLICY <existing_policy_name>
---   ADD ALLOWED_NETWORK_RULE_LIST = ('SNOWFLAKE.NETWORK_SECURITY.GITHUBACTIONS_GLOBAL');
+CREATE SCHEMA IF NOT EXISTS VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema;
+CREATE SCHEMA IF NOT EXISTS VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.prod_schema;
 
 
+-- ============================================================
+-- Step 2: Create Stage and File Format (dev)
+-- ============================================================
+
+USE SCHEMA VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema;
+
+CREATE FILE FORMAT IF NOT EXISTS json_format
+  TYPE = 'JSON'
+  STRIP_OUTER_ARRAY = TRUE;
+
+CREATE STAGE IF NOT EXISTS media_raw_stage
+  FILE_FORMAT = json_format;
+
+
+-- ============================================================
+-- Step 3: Create Stage and File Format (prod)
+-- ============================================================
+
+USE SCHEMA VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.prod_schema;
+
+CREATE FILE FORMAT IF NOT EXISTS json_format
+  TYPE = 'JSON'
+  STRIP_OUTER_ARRAY = TRUE;
+
+CREATE STAGE IF NOT EXISTS media_raw_stage
+  FILE_FORMAT = json_format;
+
+
+-- ============================================================
+-- Step 4: Load Sample Data (dev)
+-- ============================================================
+
+USE SCHEMA VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema;
+
+-- Upload sample_events.json via SnowSQL CLI:
+-- PUT file:///path/to/sample_events.json @media_raw_stage;
+
+-- Verify data in stage
+SELECT $1 FROM @media_raw_stage (FILE_FORMAT => 'json_format');
+
+-- Truncate table before full reload (handles NULL MAX issue in incremental model)
+TRUNCATE TABLE VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema.media_events;
+
+
+-- ============================================================
+-- Step 5: Verification Queries
+-- ============================================================
+
+SHOW SCHEMAS IN DATABASE VENKATESWARLU_AVVARI_COGNIZANT_COM_DB;
+SHOW STAGES  IN SCHEMA   VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema;
+SHOW STAGES  IN SCHEMA   VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.prod_schema;
+SHOW DBT PROJECTS IN DATABASE VENKATESWARLU_AVVARI_COGNIZANT_COM_DB;
+
+-- Query data after dbt run
+SELECT * FROM VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.dev_schema.media_events  LIMIT 10;
+SELECT * FROM VENKATESWARLU_AVVARI_COGNIZANT_COM_DB.prod_schema.media_events LIMIT 10;
