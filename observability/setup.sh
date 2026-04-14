@@ -6,36 +6,19 @@ ACCOUNT_ID="691879165105"
 REGION="us-east-2"
 LOG_GROUP="/ecs/dbt-sf-cicd"
 LAMBDA_NAME="dbt-sf-cicd-splunk-forwarder"
+LAMBDA_ROLE="CCL-Lambda-Role"  # existing role with AWSLambdaFullAccess
 
 # ============================================================
 # Step 1: Store Grafana + Splunk config in SSM
 # ============================================================
-aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_PROMETHEUS_URL --value "<grafana_remote_write_url>" --type SecureString --overwrite --region $REGION
-aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_USER           --value "<grafana_numeric_user_id>"  --type String       --overwrite --region $REGION
-aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_API_KEY        --value "<grafana_service_account_token>" --type SecureString --overwrite --region $REGION
-aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_URL         --value "<splunk_hec_url>"           --type SecureString --overwrite --region $REGION
-aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_TOKEN       --value "<splunk_hec_token>"         --type SecureString --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_PROMETHEUS_URL --value "<grafana_remote_write_base_url>"  --type SecureString --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_USER           --value "<grafana_numeric_user_id>"        --type String       --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/GRAFANA_API_KEY        --value "<grafana_service_account_token>"  --type SecureString --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_URL         --value "<splunk_hec_url>"                 --type SecureString --overwrite --region $REGION
+aws ssm put-parameter --name /dbt-sf-cicd/SPLUNK_HEC_TOKEN       --value "<splunk_hec_token>"               --type SecureString --overwrite --region $REGION
 
 # ============================================================
-# Step 2: Create Lambda IAM role
-# ============================================================
-aws iam create-role \
-  --role-name Lambda-dbt-sf-cicd-splunk-role \
-  --assume-role-policy-document '{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Principal": {"Service": "lambda.amazonaws.com"},
-      "Action": "sts:AssumeRole"
-    }]
-  }' --region $REGION
-
-aws iam attach-role-policy \
-  --role-name Lambda-dbt-sf-cicd-splunk-role \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-# ============================================================
-# Step 3: Package and deploy Lambda
+# Step 2: Package and deploy Lambda
 # ============================================================
 cd "$(dirname "$0")"
 zip lambda_splunk.zip lambda_splunk.py
@@ -43,7 +26,7 @@ zip lambda_splunk.zip lambda_splunk.py
 aws lambda create-function \
   --function-name $LAMBDA_NAME \
   --runtime python3.11 \
-  --role arn:aws:iam::$ACCOUNT_ID:role/Lambda-dbt-sf-cicd-splunk-role \
+  --role arn:aws:iam::$ACCOUNT_ID:role/$LAMBDA_ROLE \
   --handler lambda_splunk.lambda_handler \
   --zip-file fileb://lambda_splunk.zip \
   --environment "Variables={
@@ -55,7 +38,7 @@ aws lambda create-function \
 rm lambda_splunk.zip
 
 # ============================================================
-# Step 4: Allow CloudWatch Logs to invoke Lambda
+# Step 3: Allow CloudWatch Logs to invoke Lambda
 # ============================================================
 aws lambda add-permission \
   --function-name $LAMBDA_NAME \
@@ -66,7 +49,7 @@ aws lambda add-permission \
   --region $REGION
 
 # ============================================================
-# Step 5: Create CloudWatch Logs subscription filter
+# Step 4: Create CloudWatch Logs subscription filter
 # ============================================================
 aws logs put-subscription-filter \
   --log-group-name $LOG_GROUP \
