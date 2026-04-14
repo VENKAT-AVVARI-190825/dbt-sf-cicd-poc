@@ -26,7 +26,7 @@ push_metric() {
   local value=$2
   local labels=$3
   if [ -n "${GRAFANA_PROMETHEUS_URL}" ] && [ -n "${GRAFANA_USER}" ] && [ -n "${GRAFANA_API_KEY}" ]; then
-    TIMESTAMP=$(date +%s%3N)
+    TIMESTAMP=$(date +%s%N)  # nanoseconds for Influx line protocol
     echo "[DEBUG] URL: ${GRAFANA_PROMETHEUS_URL}/api/v1/push/influx/write"
     echo "[DEBUG] USER: ${GRAFANA_USER}"
     echo "[DEBUG] DATA: ${metric_name},${labels// /,} value=${value} ${TIMESTAMP}"
