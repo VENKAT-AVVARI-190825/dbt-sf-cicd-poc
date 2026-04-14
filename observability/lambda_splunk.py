@@ -2,15 +2,20 @@ import base64
 import gzip
 import json
 import os
+import ssl
 import urllib.request
 import urllib.error
 
-SPLUNK_HEC_URL   = os.environ["SPLUNK_HEC_URL"]    # e.g. https://<splunk-cloud>.splunkcloud.com:8088/services/collector
-SPLUNK_HEC_TOKEN = os.environ["SPLUNK_HEC_TOKEN"]  # Splunk HEC token
+SPLUNK_HEC_URL   = os.environ["SPLUNK_HEC_URL"]
+SPLUNK_HEC_TOKEN = os.environ["SPLUNK_HEC_TOKEN"]
+
+# Disable SSL verification for Splunk Cloud (POC only)
+SSL_CONTEXT = ssl.create_default_context()
+SSL_CONTEXT.check_hostname = False
+SSL_CONTEXT.verify_mode = ssl.CERT_NONE
 
 
 def lambda_handler(event, context):
-    # Decode and decompress CloudWatch Logs data
     log_data = json.loads(gzip.decompress(base64.b64decode(event["awslogs"]["data"])))
 
     events = []
@@ -36,7 +41,7 @@ def lambda_handler(event, context):
     )
 
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, context=SSL_CONTEXT) as resp:
             print(f"Splunk response: {resp.status} {resp.read().decode()}")
     except urllib.error.HTTPError as e:
         print(f"Splunk HEC error: {e.code} {e.read().decode()}")
