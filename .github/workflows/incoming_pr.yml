@@ -61,7 +61,10 @@ jobs:
                 {"name": "SNOWFLAKE_SCHEMA",    "value": "${{ secrets.SNOWFLAKE_SCHEMA_DEV }}"},
                 {"name": "DBT_OBJECT_NAME",     "value": "media_dataops_TESTER_dbt_object_gh_action"},
                 {"name": "DBT_TARGET",          "value": "dev"},
-                {"name": "RUN_TESTS",           "value": "true"}
+                {"name": "RUN_TESTS",           "value": "true"},
+                {"name": "GRAFANA_PROMETHEUS_URL", "value": "${{ secrets.GRAFANA_PROMETHEUS_URL }}"},
+                {"name": "GRAFANA_USER",           "value": "${{ secrets.GRAFANA_USER }}"},
+                {"name": "GRAFANA_API_KEY",         "value": "${{ secrets.GRAFANA_API_KEY }}"}
               ]
             }]
           }
