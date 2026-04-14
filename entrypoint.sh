@@ -38,7 +38,7 @@ push_metric() {
   fi
 }
 
-ENV_LABEL="env=\"${DBT_TARGET:-dev}\",job=\"dbt-sf-cicd\""
+ENV_LABEL="env=${DBT_TARGET:-dev},job=dbt-sf-cicd"
 START_TIME=$(date +%s)
 
 # Deploy dbt object
