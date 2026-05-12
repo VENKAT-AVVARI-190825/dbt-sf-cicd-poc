@@ -339,4 +339,74 @@ BigQuery ──► GCS ──► S3 ──► Iceberg ──► dbt ──► Sn
 
 ---
 
-*Document version: 1.0 — for client review.*
+## 7. Appendix — Stages Explained Simply *(for non-technical stakeholders)*
+
+Think of it like moving house from one city (GCP) to another (AWS), one room of furniture (one ETL job) at a time.
+
+### Stage 0 — Measure the old house
+**Before you pack anything, you measure.**
+Look at the BigQuery table: what columns does it have, what types, how many rows, how is it organised. Write that down. This becomes the recipe for building the equivalent table in Snowflake.
+
+> *"I have a table with 50M rows, 12 columns, partitioned by date — I need to recreate that shape on the other side."*
+
+### Stage 1 — Pack the boxes
+**Export the data out of BigQuery into files.**
+BigQuery dumps the table contents into Parquet files (a compressed, portable format) and drops them in a Google Cloud Storage bucket. Like packing furniture into labelled boxes.
+
+> *"Take everything in this table and put it into files I can move."*
+
+### Stage 2 — Hire the moving van
+**Copy the files from Google's cloud to Amazon's cloud.**
+A service (Storage Transfer or DataSync) drives the boxes from the GCS bucket to an S3 bucket. Verifies nothing was lost or damaged in transit (checksums).
+
+> *"Same files, now sitting in AWS instead of GCP."*
+
+### Stage 3 — Unload into the new garage
+**Files land in S3, organised in Iceberg format.**
+S3 is the "garage" — cheap storage. Iceberg is the labelling system on top, so Snowflake (and other tools later) know which files belong to which table, which date, which version.
+
+> *"The data is in AWS now, but nobody's using it yet — it's just sitting there."*
+
+### Stage 4 — Tell Snowflake "your data is here"
+**Point Snowflake at the S3 files.**
+Run a `CREATE ICEBERG TABLE` command. Snowflake doesn't copy the data — it just learns where to look. From this moment, you can run SQL against it like any normal table.
+
+> *"Snowflake, the table is in that S3 folder. Go read it when someone queries."*
+
+### Stage 5 — Run the transformations
+**dbt reshapes the raw data into useful tables.**
+The same dbt code that used to run on BigQuery now runs on Snowflake. Raw → staging → cleaned → business-ready marts. Mostly identical, with small tweaks for SQL dialect differences.
+
+> *"The recipe is the same; just cooking on a different stove."*
+
+### Stage 6 — Check our work
+**Compare BigQuery vs. Snowflake — do the numbers match?**
+Count rows. Sum the money columns. Check distinct IDs. If anything is off, find out why before going further. This is the **proof** the migration worked.
+
+> *"Same questions asked to both systems. Same answers? Pass. Different answers? Stop and fix."*
+
+### Stage 7 — Watch everything *(runs in parallel with all stages)*
+**Logs and metrics flow into Splunk and Grafana.**
+Every export, every transfer, every dbt run leaves a trail. If something breaks at 2 AM, someone gets paged and can trace the failure back to which stage broke.
+
+> *"Cameras on every step of the move — so when a box goes missing, we know exactly where."*
+
+### Stage 8 — Move out of the old house
+**Switch consumers over, then turn off BigQuery.**
+For a week, both systems run side-by-side (shadow mode) so we can compare daily. Then BI tools, dashboards, and downstream apps are re-pointed at Snowflake. BigQuery becomes read-only for a month (rollback safety net), then gets switched off.
+
+> *"Last one out turns off the lights — and stops paying GCP rent."*
+
+### The whole story in one line
+
+> **Look → Pack → Move → Unload → Catalogue → Cook → Taste-test → Move in.**
+
+Same idea, scaled to data:
+
+> **Discover → Export → Transfer → Land → Register → Transform → Validate → Cutover.**
+
+And the camera (observability) is rolling the whole time.
+
+---
+
+*Document version: 1.1 — for client review.*
