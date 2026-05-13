@@ -314,6 +314,8 @@ BigQuery ──► GCS ──► S3 ──► Iceberg ──► dbt ──► Sn
 | **Aug** | One-ETL validation, dashboards/alerts, runbooks |
 | **Sep** | Hardening, sign-off package, handover to ongoing SRE support |
 
+
+
 ---
 
 ## 5. Key Architectural Decisions
@@ -409,4 +411,97 @@ And the camera (observability) is rolling the whole time.
 
 ---
 
-*Document version: 1.1 — for client review.*
+## 7.1 How to Migrate Your dbt Jobs from GCP to AWS Snowflake
+
+Think of migrating your dbt jobs like updating your kitchen recipes when you move to a new house. The ingredients (your data) stay the same, but the stove (the database) works a little differently. Here's how to make the switch, step by step.
+
+### Step 1 — Take Stock of Your Recipes
+
+**Inventory your dbt projects and models.**
+
+Assess your dbt projects: count the number of projects, identify simple vs complex models, check for BigQuery-specific functions, determine execution frequency, and identify team members familiar with them.
+
+> *"List everything out so you know what needs to change."*
+
+### Step 2 — Swap Out the Special Ingredients
+
+**Replace BigQuery-specific SQL functions.**
+
+Identify BigQuery-specific SQL functions in your models. Common replacements include SAFE_CAST with TRY_CAST, STRUCT with OBJECT_CONSTRUCT, GENERATE_DATE_ARRAY with a loop, and removing table suffixes. Create macros for these replacements and apply them conditionally based on the target database.
+
+### Step 3 — Update Your Kitchen Setup
+
+**Update dbt profiles and configurations.**
+
+Update your dbt profiles.yml and project configurations. Replace BigQuery dataset with Snowflake database and schema, update connection details including account, user, role, warehouse, and threads. Use OIDC authentication instead of static credentials.
+
+> *"Update the setup for the new stove."*
+
+### Step 4 — Update Where You Get Your Ingredients
+
+**Repoint sources to Snowflake Iceberg tables.**
+
+Update source definitions in dbt to point to Snowflake Iceberg tables instead of BigQuery tables. The table names remain the same, but the location changes from BigQuery to Snowflake external tables.
+
+> *"Ingredients come from the fridge now."*
+
+### Step 5 — Check Your Quick Meals
+
+**Adjust incremental model strategies.**
+
+Review incremental models. BigQuery uses MERGE for incremental updates, while Snowflake requires deleting old data first. Test incremental logic thoroughly to avoid duplicates.
+
+> *"Test the leftover recipes carefully."*
+
+### Step 6 — Adjust Your Cooking Style
+
+**Optimize materializations and clustering.**
+
+Adjust dbt materializations and Snowflake-specific optimizations. Use ephemeral materializations for temporary steps, implement clustering on frequently queried columns, and size warehouses appropriately.
+
+> *"Use the new tools for better cooking."*
+
+### Step 7 — Practice in the Test Kitchen
+
+**Test in development environment.**
+
+Test your updated dbt models in the dev environment. Run models against sample data, compare outputs between BigQuery and Snowflake, ensure data integrity.
+
+> *"Practice before serving to everyone."*
+
+### Step 8 — Update Your Meal Schedule
+
+**Configure scheduling and orchestration.**
+
+Set up scheduling. Configure Snowflake Tasks for automated runs or integrate with external schedulers, replacing BigQuery's native scheduling.
+
+> *"Update the schedule for the new kitchen."*
+
+### Step 9 — Double-Check Before Serving
+
+**Run parallel validation.**
+
+Run parallel executions in both environments for a week. Compare row counts, sums, and sample data to validate accuracy.
+
+> *"Cook in both kitchens and compare."*
+
+### Step 10 — Switch Over
+
+**Execute cutover and decommission BigQuery.**
+
+Perform cutover: stop BigQuery jobs, redirect consumers to Snowflake, monitor for issues, decommission BigQuery after validation.
+
+> *"Same great food, just from a better kitchen."*
+
+### What If Something Goes Wrong?
+
+| Problem | Why it happened | What to do |
+|---|---|---|
+| Meals don't taste right | Ingredients mixed differently | Check your recipe notes; adjust the mixing |
+| Leftovers pile up | Wrong portion control | Test your leftover recipes; start fresh if needed |
+| Cooking takes too long | Stove too small or messy pantry | Make the stove bigger; organize better |
+| Can't find ingredients | Name confusion | Use consistent naming or labels |
+
+---
+
+*Document version: 1.2 — for client review.*
